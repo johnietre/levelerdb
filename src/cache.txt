@@ -1,0 +1,79 @@
+// leveldb/include/leveldb/cache.h
+
+use std::ffi::c_void;
+
+use crate::util::cache::ShardedLRUCache;
+use crate::slice::Slice;
+
+// Create a new cache with a fixed size capacity. This implementation of Cache uses a
+// least-recently-used eviction policy.
+// NOTE: Uses ShardedLRUCache
+// NOTE: Box<dyn _> or Box<ShardedLRUCache> or unboxed?
+pub fn new_lru_cache(capacity: usize) -> Box<dyn Cache> {
+    Box::new(ShardedLRUCache::with_capacity(capacity))
+}
+
+// Opaque handle to an entry stored in the cache.
+pub trait Cache {
+    // NOTE: Virtual deconstructor in C++, just Drop here?
+    // Destroys all existing entries by calling the "deleter" function that was passed to the
+    // constructor
+
+    // Insert a mapping from key.value into the cache and assign it the specified charge against
+    // the total capacity.
+    //
+    // Returns a handle that corresponds to the mapping. The caller must call release(handle) when
+    // the returned mapping is no longer needed.
+    //
+    // When the isnerted entry is no longer needed, the key and value will be passed to "deleter".
+    // TODO/NOTE: Virtual function in C++
+    // TODO: Use Generic rather than box?
+    fn insert(
+        &mut self,
+        key: &Slice,
+        value: *const c_void,
+        charge: usize,
+        deleter: Box<Fn(&Slice, *const c_void)>,
+    ) -> Box<dyn Handle>;
+
+    // If the cache has no mappying for "key", returns None.
+    //
+    // Else return a handle that corresponds to the mapping. The caller must call
+    // self.release(&mut self, handle) when the returned mapping is no longer needed.
+    // NOTE: Returns nullptr in C++ rather than None
+    // TODO: &mut self or &self?
+    fn lookup(&self, key: &Slice) -> Option<Box<dyn Handle>>;
+
+    // Release a mapping returned by a previous lookup(&mut self, ).
+    // REQUIRES: handle must not have been released yet.
+    // REQUIRES: handle must have been returned by a method on self.
+    // TODO: Use generic box?
+    fn release(&mut self, handle: Box<dyn Handle>);
+
+    // Return the value encapsulated in a handle returned by a successful lookup(&mut self, ).
+    // REQUIRES: handle must not have been released yet.
+    // REQUIRES: handle must have been returned by a method on self.
+    // TODO: const or mut?
+    // TODO: &mut self or &self?
+    fn value(&self, handle: Box<dyn Handle>) -> *const c_void;
+
+    // If the cache contains entry for key, erase it. Note that the underlying entry will be kept
+    // around until all existing handles to it have been released.
+    fn erase(&mut self, slice: &Slice);
+
+    // Return a new numeric id. May be used by multiple clients who are sharing the same cache to
+    // partition to key space. Typically the client will allocate a new id at startup and prepend
+    // the id to its cache keys.
+    // TODO: &mut self or &self?
+    fn new_id(&self) -> u64;
+
+    // Remove all cache entries that aren't actively in use. Memory-constrained applications may
+    // wish to call this method to reduce memory usage.
+    // Default implementation of prune() does nothing. Trait implementors are strongly encouraged
+    // to override the default implementation. A future release of leveldb my change prune() to a
+    // pure abstract method.
+    fn prune(&mut self) {}
+
+    // Return an estimate of the combined charges of all elements stored in the cache.
+    fn total_charge(&self) -> usize;
+}

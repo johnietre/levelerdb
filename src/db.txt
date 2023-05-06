@@ -1,0 +1,11 @@
+pub struct DB {
+    //
+}
+
+impl DB {
+    // NOTE: Take ownership of options?
+    // NOTE: Take ownership of String (&str)
+    pub fn open(options: &Options, name: &str, _: u32) -> Status {
+        //
+    }
+}

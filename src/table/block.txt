@@ -1,0 +1,33 @@
+// leveldb/table/block.{h,cc}
+
+use crate::{comparator, table::format, util::{coding, logging}};
+use std::os::raw::c_char;
+
+pub struct BlockContents {
+}
+
+pub struct Block {
+    data: *const c_char,
+    size: usize,
+    restart_offset: u32, // Offset in "data" of restart array
+    owned: bool, // Block owns "data"
+}
+
+impl Block {
+    pub fn new(contents: &BlockContents) -> Self {
+    }
+
+    pub fn size(&self) -> usize { self.size }
+
+    pub fn new_iterator(&mut self, comparator: &Comparator) -> Box<dyn Iter> {
+    }
+
+    #[inline]
+    fn num_restarts(&self) -> u32 {
+        assert!(self.size >= size_of::<u32>());
+        coding::decode_fixed32();
+    }
+}
+
+struct BlockIter {
+}
